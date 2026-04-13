@@ -37,7 +37,7 @@ Algunas asignaciones PPS configuradas por MCC:
 
 ## Estado actual del firmware
 
-**Último commit:** `d8aceb0` - "Gcode funcionando v1: Gcode se reconocen pero motor tiene problemas con ciertas frecuencias"
+**Último commit:** `7cba2da` - "Gcode funcionando: Gcode ahora tiene opcion para prender o apagar el envio de posicion cada 100 ms. Todavia no hay fix de las frecuancias del motor"
 
 ### Implementado
 
@@ -47,7 +47,7 @@ El firmware incluye:
 
 - **Parser G-code completo** con buffer de 32 caracteres y conversión automática a mayúsculas.
 - **NCO1** para generación de pulsos con velocidad configurable (`nco_set_speed()`).
-- **Timer 2** configurado para interrupción cada 100ms -> **telemetría a 10Hz**.
+- **Timer 2** configurado para interrupción cada 100ms -> **telemetría a 10Hz** (activable/desactivable por G-code).
 - **Contador de posición** en ISR del NCO (`NCO1_ISR` en `nco1.c`), lectura atómica con `position_get_atomic()`.
 - **Máquinas de estado** (`IDLE`, `HOMING`, `MOVE`).
 
@@ -60,6 +60,8 @@ El firmware incluye:
 | `G28` | Homing (velocidad/4) | `G28` |
 | `G92 X<pos>` | Establecer posición actual + detiene motor | `G92 X0` |
 | `M114` | Reportar posición bajo demanda | `M114` |
+| `M120` | **Activar** telemetría automática cada 100ms | `M120` |
+| `M121` | **Desactivar** telemetría automática | `M121` |
 | `M203 S<vel>` | Configurar velocidad (1-5000 mm/min) | `M203 S2000` |
 | `M350 S<mode>` | Configurar microstepping (1,2,4,8,16) | `M350 S8` |
 
@@ -69,8 +71,9 @@ El firmware incluye:
 - `ok F<vel>` - velocidad configurada/consultada
 - `ok M:<mode>` - microstepping configurado/consultado
 - `ok X:xx.xx` - posición reportada o fijada
+- `ok REPORT ON` / `ok REPORT OFF` - telemetría activada/desactivada
 - `error: <motivo>` - error en comando
-- **Telemetría automática:** `X:xx.xx` cada 100ms
+- **Telemetría automática:** `X:xx.xx` cada 100ms — **desactivada por defecto** (activar con `M120`)
 
 ### Configuración por defecto
 
@@ -91,6 +94,21 @@ El firmware incluye:
 1. **Revisar cálculos eléctricos** del hardware (corriente, disipación, configuración del A4988) y ajustar si aplica para el motor elegido.
 2. **Agregar sensor de fin de carrera** para homing automático.
 3. **Implementar aceleración/desaceleración** (rampas) para evitar pérdida de pasos.
+
+   **Perfil de rampa a implementar:**
+
+   - **Trapezoidal** (distancias largas): acelerar -> mantener max speed -> desacelerar.
+     Ocurre cuando: `distancia_total > (dist_accel + dist_decel)`
+   - **Triangular** (distancias cortas): acelerar hasta un pico < max speed e inmediatamente desacelerar.
+     Ocurre cuando: `distancia_total <= (dist_accel + dist_decel)`
+
+   **Detalles de implementación:**
+   - Calcular pasos de aceleración (`dist_accel`) y desaceleración (`dist_decel`) basado en la aceleración configurada.
+   - En cada paso, modificar gradualmente el incremento del NCO (`NCO1INC*`) para cambiar la frecuencia.
+   - Antes de iniciar el movimiento, determinar si el perfil será trapezoidal o triangular.
+   - Si triangular: el pico de velocidad se calcula para que `dist_accel + dist_decel = distancia_total`.
+   - Se puede ejecutar en el ISR del NCO o con un timer dedicado.
+
 4. **Límites de recorrido** (software endstops).
 5. **Comando de deshabilitar motor** (requiere recablear ENABLE a pin del PIC).
 
@@ -124,7 +142,7 @@ En este proyecto los MS están conectados a:
 Este repo se creó para preservar una versión funcional y poder iterar sin perderla:
 
 - Commit inicial: `version-funcional-inicial` (Timer 2 + reporte 100ms).
-- Commit actual: `d8aceb0` (G-code v1).
+- Commit actual: `7cba2da` (G-code con M120/M121 on/off telemetría).
 
 Volver al estado guardado:
 
