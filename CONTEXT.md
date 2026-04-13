@@ -35,47 +35,64 @@ Algunas asignaciones PPS configuradas por MCC:
 - `RC4PPS = 0x0F` -> `RC4` como `EUSART1 TX`
 - `RX1PPS = 0x15` -> `RC5` como `EUSART1 RX`
 
-## Estado actual del firmware (resumen)
+## Estado actual del firmware
+
+**Último commit:** `d8aceb0` - "Gcode funcionando v1: Gcode se reconocen pero motor tiene problemas con ciertas frecuencias"
+
+### Implementado
 
 Archivo principal: `main.c`.
 
-Actualmente el proyecto:
+El firmware incluye:
 
-- Inicializa MCC (`SYSTEM_Initialize()`).
-- Usa `NCO1` para habilitar/deshabilitar generación de pulsos (`motor_start()`/`motor_stop()`).
-- Usa UART por `EUSART1` para recibir comandos simples:
-  - `H`: inicia "homing" (sin sensor de fin de carrera integrado todavía).
-  - `Z`: fija cero si está en `HOMING`.
-  - Un número ASCII y Enter: interpreta mm, convierte a pasos con `STEPS_PER_MM`, setea `DIR` y comienza movimiento.
-- Maneja estados (`IDLE`, `HOMING`, `MOVE`).
+- **Parser G-code completo** con buffer de 32 caracteres y conversión automática a mayúsculas.
+- **NCO1** para generación de pulsos con velocidad configurable (`nco_set_speed()`).
+- **Timer 2** configurado para interrupción cada 100ms -> **telemetría a 10Hz**.
+- **Contador de posición** en ISR del NCO (`NCO1_ISR` en `nco1.c`), lectura atómica con `position_get_atomic()`.
+- **Máquinas de estado** (`IDLE`, `HOMING`, `MOVE`).
 
-Limitación importante detectada:
+### Comandos G-code soportados
 
-- Existen `current_position` y `target_position`, pero se requiere un mecanismo confiable para **actualizar `current_position`** en función de los pasos reales (por ISR, contador de NCO, interrupciones, o un timer), especialmente si se necesita reporte 10 Hz y movimientos precisos.
+| Comando | Función | Ejemplo |
+|---|---|---|
+| `G0 X<pos>` | Mover a posición (rápido) | `G0 X50.5` |
+| `G1 X<pos>` | Mover a posición (trabajo) | `G1 X30.0` |
+| `G28` | Homing (velocidad/4) | `G28` |
+| `G92 X<pos>` | Establecer posición actual + detiene motor | `G92 X0` |
+| `M114` | Reportar posición bajo demanda | `M114` |
+| `M203 S<vel>` | Configurar velocidad (1-5000 mm/min) | `M203 S2000` |
+| `M350 S<mode>` | Configurar microstepping (1,2,4,8,16) | `M350 S8` |
 
-## Requerimientos a implementar
+### Respuestas
 
-1. **Mover por comandos seriales a posición deseada** (posición en mm o pasos).
-2. **Configurar velocidad máxima** por serial.
-3. **Configurar resolución de micro-pasos** por serial (A4988: MS1/MS2/MS3).
-4. **Revisar cálculos eléctricos** del hardware (corriente, disipación, configuración del A4988) y ajustar si aplica para el motor elegido.
-5. **Implementar comandos G-code** mínimos necesarios para cumplir lo anterior.
-6. **Enviar la posición en tiempo real a 10 Hz** (10 veces por segundo).
+- `ok` - comando ejecutado
+- `ok F<vel>` - velocidad configurada/consultada
+- `ok M:<mode>` - microstepping configurado/consultado
+- `ok X:xx.xx` - posición reportada o fijada
+- `error: <motivo>` - error en comando
+- **Telemetría automática:** `X:xx.xx` cada 100ms
 
-## Propuesta de comandos (subconjunto de G-code)
+### Configuración por defecto
 
-Se planea implementar un subconjunto simple (1 eje) compatible con herramientas básicas:
+- Velocidad máxima: `1000` mm/min
+- Microstepping: `1/8` (MS1=1, MS2=1, MS3=0)
+- STEPS_PER_MM: `320`
+- Rango de velocidad configurable: `1-5000` mm/min
 
-- `G0 X<pos>` / `G1 X<pos>`: mover a la posición X (mm).
-- `G28`: homing.
-- `G92 X<pos>`: establecer posición actual.
-- `M114`: reportar posición actual bajo demanda.
-- `M203 S<vel>`: configurar velocidad máxima.
-- `M350 S<1|2|4|8|16>`: configurar microstepping.
+## Limitaciones conocidas
 
-Telemetría periódica (cada 100 ms):
+- **Homing sin sensor de fin de carrera:** `G28` inicia movimiento pero no detecta automáticamente el fin del recorrido. Se requiere intervención manual o agregar un switch limit.
+- **Problemas de frecuencias:** El motor tiene problemas con ciertas frecuencias de NCO. Se requiere revisar el cálculo del incremento del NCO y posiblemente agregar aceleración/desaceleración.
+- **Sin aceleración:** El motor arranca y para a velocidad constante, lo que puede causar pérdida de pasos en ciertas velocidades.
+- **Sin límite de recorrido:** No hay software limits (`$130/$131` en GRBL). El motor puede intentar mover más allá del rango físico.
 
-- Enviar una línea con la posición actual (formato por definir, ejemplo `X:<mm>` o estilo `M114` simplificado).
+## Pendientes
+
+1. **Revisar cálculos eléctricos** del hardware (corriente, disipación, configuración del A4988) y ajustar si aplica para el motor elegido.
+2. **Agregar sensor de fin de carrera** para homing automático.
+3. **Implementar aceleración/desaceleración** (rampas) para evitar pérdida de pasos.
+4. **Límites de recorrido** (software endstops).
+5. **Comando de deshabilitar motor** (requiere recablear ENABLE a pin del PIC).
 
 ## Microstepping A4988 (referencia)
 
@@ -95,7 +112,8 @@ En este proyecto los MS están conectados a:
 
 ## Carpeta y archivos relevantes
 
-- `main.c`: lógica principal (firmware).
+- `main.c`: lógica principal (firmware) con parser G-code.
+- `GCODE_REFERENCE.md`: manual de referencia de comandos G-code.
 - `mcc_generated_files/`: drivers generados (EUSART1, NCO1, TMR2, pin manager, etc.).
 - `nema_uart.mc3`: configuración de MCC.
 - `nbproject/`: metadata de MPLAB X.
@@ -105,11 +123,11 @@ En este proyecto los MS están conectados a:
 
 Este repo se creó para preservar una versión funcional y poder iterar sin perderla:
 
-- Tag de referencia: `version-funcional-inicial` (commit inicial guardado).
-- Rama de trabajo: `mejoras-motor-serial`.
+- Commit inicial: `version-funcional-inicial` (Timer 2 + reporte 100ms).
+- Commit actual: `d8aceb0` (G-code v1).
 
 Volver al estado guardado:
 
 - `git switch --detach version-funcional-inicial`
 - o `git switch main` si `main` aún apunta a esa versión.
-
+- `git log --oneline` para ver historial completo.

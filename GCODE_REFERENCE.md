@@ -33,8 +33,10 @@
 | Comando | Descripción | Ejemplo | Respuesta |
 |---|---|---|---|
 | `M114` | Reportar posición actual bajo demanda | `M114` | `ok X:12.34` |
+| `M120` | **Activar** telemetría automática cada 100ms | `M120` | `ok REPORT ON` |
+| `M121` | **Desactivar** telemetría automática | `M121` | `ok REPORT OFF` |
 
-**Telemetría automática:** Se envía `X:xx.xx` cada **100ms** (10Hz) sin necesidad de enviar comando.
+**Nota:** La telemetría automática está **desactivada por defecto**. Envía `M120` para activarla y `M121` para detenerla.
 
 ## Configuración
 
@@ -93,9 +95,11 @@ error: comando desconocido
 3. G92 X0         -> Fijar cero
 4. M203 S1500     -> Configurar velocidad a 1500 mm/min
 5. M350 S8        -> Configurar microstepping 1/8
-6. G1 X50.0       -> Mover a 50mm
-7. (telemetría automática cada 100ms: X:12.34, X:15.67, ...)
-8. G0 X0          -> Volver a cero
+6. M120           -> Activar telemetría automática (opcional)
+7. G1 X50.0       -> Mover a 50mm
+8. (si M120 activado: telemetría cada 100ms: X:12.34, X:15.67, ...)
+9. M121           -> Desactivar telemetría
+10. G0 X0         -> Volver a cero
 ```
 
 ## Notas de UART

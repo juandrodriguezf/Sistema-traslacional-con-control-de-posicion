@@ -62,6 +62,7 @@ volatile long target_position = 0;
 volatile uint8_t dir = 0;
 volatile uint8_t motor_enable = 0;
 volatile uint8_t report_position_flag = 0;
+volatile uint8_t periodic_report_enabled = 0; // 0 = apagado por defecto
 
 // UART buffer para G-code
 char rx_buffer[32];
@@ -322,6 +323,20 @@ static void execute_gcode(const char *cmd)
         UART_SendPosition();
     }
 
+    // ================= M120 - Enable periodic report =================
+    else if(cmd[0] == 'M' && cmd[1] == '1' && cmd[2] == '2' && cmd[3] == '0')
+    {
+        periodic_report_enabled = 1;
+        UART_SendString("ok REPORT ON\r\n");
+    }
+
+    // ================= M121 - Disable periodic report =================
+    else if(cmd[0] == 'M' && cmd[1] == '1' && cmd[2] == '2' && cmd[3] == '1')
+    {
+        periodic_report_enabled = 0;
+        UART_SendString("ok REPORT OFF\r\n");
+    }
+
     // ================= M203 =================
     else if(cmd[0] == 'M' && cmd[1] == '2' && cmd[2] == '0' && cmd[3] == '3')
     {
@@ -423,7 +438,7 @@ void main(void)
 
     while (1)
     {
-        if(report_position_flag)
+        if(report_position_flag && periodic_report_enabled)
         {
             report_position_flag = 0;
             UART_SendPosition();
