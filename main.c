@@ -46,7 +46,6 @@
 #include <string.h>
 #include <xc.h>
 
-
 // ================= VARIABLES =================
 
 typedef enum { IDLE, HOMING, MOVE } system_state_t;
@@ -233,18 +232,15 @@ static void execute_gcode(const char *cmd) {
       // --- Configuracion de Rampa (Full Step) ---
       target_freq =
           ((unsigned long)max_speed_mm_min * get_steps_per_mm()) / 60UL;
-      if (target_freq > 1500)
-        target_freq = 1500; // Tope max para Full Step(Excel)
+      if (target_freq > 10000)
+        target_freq =
+            10000; // Nuevo tope solicitado (10k mm/min ~ 6.6k Hz en FullStep)
 
       start_freq = 400; // Min de arranque superior al 121 (aprox 3x)
       current_freq = start_freq;
 
-      // Constante aceleracion: cuanto sube la frec por PASO recorrido.
-      // Ej: target 1500, start 400 = delta 1100.
-      // Si df_step = 2, tardara 550 pasos en acelerar.
-      unsigned long df_step = 2; // Hz / paso
-
-      ramp_accel_steps = (target_freq - start_freq) / df_step;
+      // Constante aceleracion: 1 Hz cada 2 pasos (0.5 Hz/paso)
+      ramp_accel_steps = (target_freq - start_freq) * 2;
       ramp_decel_steps = ramp_accel_steps; // Perfil trapecio simetrico
 
       // Ajuste para perfil triangular si el tramo no da para acelerar a fondo
@@ -350,12 +346,12 @@ static void execute_gcode(const char *cmd) {
 
     if (s_ptr) {
       long speed = atol(s_ptr);
-      if (speed > 0 && speed <= 5000) {
+      if (speed > 0 && speed <= 10000) {
         max_speed_mm_min = speed;
         sprintf(tx_buffer, "ok F%ld\r\n", speed);
         UART_SendString(tx_buffer);
       } else {
-        UART_SendString("error: velocidad fuera de rango (1-5000)\r\n");
+        UART_SendString("error: velocidad fuera de rango (1-10000)\r\n");
       }
     } else {
       sprintf(tx_buffer, "ok F%ld\r\n", max_speed_mm_min);
@@ -473,9 +469,8 @@ void main(void) {
               ramp_state = RAMP_CRUISE;
             }
           } else {
-            // Incrementar proporcionalmente la freq.
-            // df = 2 Hz/paso (fijado arriba)
-            current_freq = start_freq + (steps_moved * 2);
+            // df = 0.5 Hz/paso (1 Hz cada 2 pasos)
+            current_freq = start_freq + (steps_moved / 2);
             if (current_freq > target_freq)
               current_freq = target_freq;
             nco_set_freq(current_freq);
@@ -488,14 +483,10 @@ void main(void) {
 
         if (ramp_state == RAMP_DECEL) {
           if (steps_remaining > 0) {
-            // Decrementar proporcionalmente.
-            // Usamos steps_remaining para saber qué tan cerca de Frenar
-            // estamos. En el paso 1 (antes de frenar) debe ser start_freq. f =
-            // start_freq + (steps_remaining * 2) Así bajará hasta start_freq.
-            unsigned long tmp_f = start_freq + (steps_remaining * 2);
+            // f = start_freq + (steps_remaining / 2)
+            unsigned long tmp_f = start_freq + (steps_remaining / 2);
             if (tmp_f > target_freq)
               tmp_f = target_freq; // seguridad
-
             current_freq = tmp_f;
             nco_set_freq(current_freq);
           }
