@@ -90,6 +90,7 @@ volatile unsigned long ramp_decel_steps = 0;
 volatile unsigned long current_freq = 400;
 volatile unsigned long target_freq = 1500;
 volatile unsigned long start_freq = 400;
+volatile unsigned long accel_divisor = 2; // global para que main() tenga acceso
 
 // ================= UART =================
 
@@ -232,15 +233,26 @@ static void execute_gcode(const char *cmd) {
       // --- Configuracion de Rampa (Full Step) ---
       target_freq =
           ((unsigned long)max_speed_mm_min * get_steps_per_mm()) / 60UL;
-      if (target_freq > 10000)
-        target_freq =
-            10000; // Nuevo tope solicitado (10k mm/min ~ 6.6k Hz en FullStep)
+      if (target_freq > 20000)
+        target_freq = 20000; // Nuevo tope solicitado (20k Hz)
 
-      start_freq = 400; // Min de arranque superior al 121 (aprox 3x)
+      if (current_microstepping == 1) {
+        start_freq = 900;
+        accel_divisor = 2; // df = 0.5 Hz / paso
+      } else if (current_microstepping == 2) {
+        // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
+        // inercia pero la rampa debe ser mas suave por la perdida de torque.
+        start_freq = 2000;
+        accel_divisor = 4; // df = 0.25 Hz / paso
+      } else {
+        start_freq = 200 * current_microstepping;
+        accel_divisor = 2 * current_microstepping;
+      }
+
       current_freq = start_freq;
 
-      // Constante aceleracion: 1 Hz cada 2 pasos (0.5 Hz/paso)
-      ramp_accel_steps = (target_freq - start_freq) * 2;
+      // Constante aceleracion calculada dinamicamente
+      ramp_accel_steps = (target_freq - start_freq) * accel_divisor;
       ramp_decel_steps = ramp_accel_steps; // Perfil trapecio simetrico
 
       // Ajuste para perfil triangular si el tramo no da para acelerar a fondo
@@ -346,12 +358,12 @@ static void execute_gcode(const char *cmd) {
 
     if (s_ptr) {
       long speed = atol(s_ptr);
-      if (speed > 0 && speed <= 10000) {
+      if (speed > 0 && speed <= 20000) {
         max_speed_mm_min = speed;
         sprintf(tx_buffer, "ok F%ld\r\n", speed);
         UART_SendString(tx_buffer);
       } else {
-        UART_SendString("error: velocidad fuera de rango (1-10000)\r\n");
+        UART_SendString("error: velocidad fuera de rango (1-20000)\r\n");
       }
     } else {
       sprintf(tx_buffer, "ok F%ld\r\n", max_speed_mm_min);
@@ -405,11 +417,11 @@ void main(void) {
   INTERRUPT_PeripheralInterruptEnable();
 
   // Configuracion inicial
-  LATCbits.LATC2 = 0; // DIR
-  setMicrostep(1);    // Inicia por defecto en Full Step para probar
-  nco_set_freq(400);
+  LATCbits.LATC2 = 0;       // DIR
+  setMicrostep(2);          // Inicia en modo 1/2 step
+  nco_set_freq(start_freq); // Inicializa a la frecuencia de arranque
 
-  UART_SendString("Sistema listo (G-code Rampas FullStep)\r\n");
+  UART_SendString("Sistema listo (G-code Rampas 1/2 Step)\r\n");
 
   while (1) {
     if (report_position_flag && periodic_report_enabled) {
@@ -469,8 +481,8 @@ void main(void) {
               ramp_state = RAMP_CRUISE;
             }
           } else {
-            // df = 0.5 Hz/paso (1 Hz cada 2 pasos)
-            current_freq = start_freq + (steps_moved / 2);
+            // df adaptativo segun modo
+            current_freq = start_freq + (steps_moved / accel_divisor);
             if (current_freq > target_freq)
               current_freq = target_freq;
             nco_set_freq(current_freq);
@@ -483,8 +495,9 @@ void main(void) {
 
         if (ramp_state == RAMP_DECEL) {
           if (steps_remaining > 0) {
-            // f = start_freq + (steps_remaining / 2)
-            unsigned long tmp_f = start_freq + (steps_remaining / 2);
+            // desaceleracion adaptativa segun modo
+            unsigned long tmp_f =
+                start_freq + (steps_remaining / accel_divisor);
             if (tmp_f > target_freq)
               tmp_f = target_freq; // seguridad
             current_freq = tmp_f;
