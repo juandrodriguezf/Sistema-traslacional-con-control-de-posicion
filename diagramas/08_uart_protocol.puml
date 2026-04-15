@@ -1,0 +1,109 @@
+@startuml UART Communication Protocol
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+
+title Protocolo de Comunicación UART
+
+participant "PC / G-code Sender" as PC
+participant "PIC16F18426\nFirmware" as PIC
+database "Motor State" as Motor
+
+== Configuration Phase ==
+
+PC -> PIC: M203 S2000 (Set velocity to 2000 mm/min)
+PIC -> PIC: Validate: 1 <= 2000 <= 5000
+PIC -> Motor: Store max_velocity = 2000
+PIC --> PC: ok F2000
+
+PC -> PIC: M350 S8 (Set microstepping to 1/8)
+PIC -> PIC: Set MS1=1, MS2=1, MS3=0
+PIC --> PC: ok M:8
+
+PC -> PIC: M120 (Enable telemetry)
+PIC -> PIC: telemetry_enabled = true
+PIC --> PC: ok REPORT ON
+
+== Movement Phase ==
+
+PC -> PIC: G0 X50.5 (Rapid move to 50.5mm)
+PIC -> PIC: Parse: G0, X=50.5
+PIC -> Motor: Calculate steps: 50.5 * 320 = 16160
+PIC -> Motor: Set DIR pin (direction)
+PIC -> Motor: nco_set_speed(2000)
+PIC -> Motor: Start NCO (STEP pulses)
+PIC -> PIC: State = MOVE
+PIC --> PC: ok
+
+... Motor moving ...
+
+note over PIC, Motor
+  NCO ISR generates STEP pulses
+  Position counter increments
+  DIR pin controls direction
+end note
+
+PIC -> PIC: Position == Target (50.5mm)
+PIC -> Motor: Stop NCO
+PIC -> PIC: State = IDLE
+PIC --> PC: ok X:50.50
+
+== Position Query ==
+
+PC -> PIC: M114 (Report position)
+PIC -> Motor: position_get_atomic()
+Motor --> PIC: 50.50mm
+PIC --> PC: ok X:50.50
+
+== Telemetry Stream ==
+
+... Automatic telemetry every 100ms ...
+
+loop Every 100ms (Timer 2 ISR)
+  PIC -> Motor: Read position (atomic)
+  Motor --> PIC: current_position
+  PIC --> PC: X:50.50
+  PIC --> PC: X:50.50
+  PIC --> PC: X:50.50
+end
+
+PC -> PIC: M121 (Disable telemetry)
+PIC -> PIC: telemetry_enabled = false
+PIC --> PC: ok REPORT OFF
+
+== Homing (Current: No limit switch) ==
+
+PC -> PIC: G28 (Home)
+PIC -> Motor: Set speed = max/4
+PIC -> Motor: Move in home direction
+PIC -> Motor: (No limit detection yet)
+PIC --> PC: ok
+note right
+  WARNING: No automatic stop
+  Requires manual intervention
+end note
+
+== Set Position (G92) ==
+
+PC -> PIC: G92 X0 (Set current position to 0)
+PIC -> Motor: Stop NCO
+PIC -> Motor: position_counter = 0
+PIC --> PC: ok X:0
+
+== Pin Status ==
+
+PC -> PIC: M900 (Report pin states)
+PIC -> PIC: Read DIR, MS1, MS2, MS3 pins
+PIC --> PC: DIR:1 MS1:1 MS2:1 MS3:0
+
+legend bottom
+  == Protocol Characteristics ==
+  Baud rate: 9600
+  Format: 8N1 (8 bits, No parity, 1 stop)
+  Line ending: \\n (newline)
+  Case: Automatic uppercase conversion
+  Buffer: 32 characters
+  Response format: "ok" for success, "error: <reason>" for failures
+endlegend
+
+@enduml

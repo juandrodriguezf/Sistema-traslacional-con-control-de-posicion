@@ -1,0 +1,92 @@
+@startuml G-code Parser Flow
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+
+title Flujo de Procesamiento de Comandos G-code
+
+start
+
+:UART Character Received;
+:ISR RX;
+
+if (Buffer full?) then (yes)
+  :Overflow - discard;
+  stop
+else (no)
+  :Add character to buffer;
+endif
+
+if (Character == '\\n'?) then (yes)
+  :Null-terminate string;
+  :Convert to UPPERCASE;
+  :Parse command;
+  
+  if (Valid G0/G1?) then (yes)
+    :Extract X position;
+    :Validate range;
+    
+    if (Valid position?) then (yes)
+      :Calculate steps;
+      :Set direction (DIR pin);
+      :nco_set_speed();
+      :Start NCO;
+      :State -> MOVE;
+      :Send "ok";
+    else (no)
+      :Send "error: invalid position";
+    endif
+  elseif (Valid G28?) then (yes)
+    :Set reduced speed (/4);
+    :Start movement;
+    :State -> HOMING;
+    :Send "ok";
+  elseif (Valid G92?) then (yes)
+    :Stop motor;
+    :Set position counter;
+    :Send "ok X:<new_pos>";
+  elseif (Valid M114?) then (yes)
+    :Read position (atomic);
+    :Send "ok X:<current_pos>";
+  elseif (Valid M120?) then (yes)
+    :Enable telemetry flag;
+    :Send "ok REPORT ON";
+  elseif (Valid M121?) then (yes)
+    :Disable telemetry flag;
+    :Send "ok REPORT OFF";
+  elseif (Valid M203?) then (yes)
+    :Extract S<velocity>;
+    :Validate range (1-5000);
+    
+    if (Valid?) then (yes)
+      :Store max_velocity;
+      :Send "ok F<velocity>";
+    else (no)
+      :Send "error: invalid speed";
+    endif
+  elseif (Valid M350?) then (yes)
+    :Extract S<microstep>;
+    :Validate (1,2,4,8,16);
+    
+    if (Valid?) then (yes)
+      :Set MS1/MS2/MS3 pins;
+      :Send "ok M:<mode>";
+    else (no)
+      :Send "error: invalid microstep";
+    endif
+  elseif (Valid M900?) then (yes)
+    :Read DIR, MS1, MS2, MS3;
+    :Send pin states;
+  else (no)
+    :Send "error: unknown command";
+  endif
+  
+  :Clear buffer;
+  
+else (no)
+  :Continue receiving;
+endif
+
+stop
+
+@enduml

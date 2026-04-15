@@ -1,0 +1,124 @@
+@startuml Ramp Profiles
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+
+title Perfiles de Aceleración - Implementación Pendiente
+
+start
+
+:Calculate total distance to move;
+
+if (distance_total > dist_accel + dist_decel?) then (yes)
+  :TRAPEZOIDAL Profile;
+  partition "Trapezoidal Ramp" {
+    :Phase 1: ACCELERATION;
+    note right
+      Gradually increase NCO frequency
+      from start to max_speed
+      (velocity ramps up)
+    end note
+    
+    :Phase 2: CONSTANT SPEED;
+    note right
+      Maintain maximum velocity
+      for middle portion of move
+      (flat top of trapezoid)
+    end note
+    
+    :Phase 3: DECELERATION;
+    note right
+      Gradually decrease NCO frequency
+      from max_speed to zero
+      (velocity ramps down)
+    end note
+  }
+else (no)
+  :TRIANGULAR Profile;
+  partition "Triangular Ramp" {
+    :Phase 1: ACCELERATION;
+    note right
+      Increase NCO frequency
+      until reaching peak velocity
+      (peak < max_speed)
+    end note
+    
+    :Phase 2: IMMEDIATE DECELERATION;
+    note right
+      No constant speed phase
+      Immediately decelerate
+      after reaching peak
+    end note
+  }
+endif
+
+stop
+
+---
+
+[Velocity vs Position Graph]
+
+skinparam rectangle {
+  BackgroundColor #E8F4F8
+  BorderColor #0066CC
+}
+
+rectangle "== TRAPEZOIDAL PROFILE ==" as trap_title #lightblue
+
+rectangle "
+Velocity
+  ^
+  |       /¯¯¯¯¯¯¯¯¯¯\
+  |      /            \
+  |     /              \
+  |    /                \
+  |   /                  \
+  |  /                    \
+  | /                      \
+  |/                        \
+  +-----------------------------> Distance
+  
+  |--|-------|----|
+  Acc  Const  Dec
+" as trap_graph
+
+rectangle "== TRIANGULAR PROFILE ==" as tri_title #lightyellow
+
+rectangle "
+Velocity
+  ^
+  |         /\\
+  |        /  \\
+  |       /    \\
+  |      /      \\
+  |     /        \\
+  |    /          \\
+  |   /            \\
+  |  /              \\
+  |/                  \\
+  +-----------------------------> Distance
+  
+  |-----|-------|
+   Acc    Dec
+  (No constant speed phase)
+" as tri_graph
+
+trap_title -down- trap_graph
+tri_title -down- tri_graph
+
+note bottom of tri_graph
+  **Key Implementation Details:**
+  
+  - Modify NCO1INC register in ISR for each step
+  - Calculate dist_accel and dist_decel from configured acceleration
+  - For triangular: peak_velocity = sqrt(2 * accel * distance_total / 2)
+  - STEPS_PER_MM = 320 (current config)
+  - Need to add acceleration parameter (M204 command)
+end note
+
+footer
+  Status: PENDING - Currently motor starts/stops at constant speed
+  This causes step loss at certain frequencies
+endfooter
+
+@enduml

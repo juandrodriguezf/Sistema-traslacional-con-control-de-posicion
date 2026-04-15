@@ -1,0 +1,85 @@
+@startuml Timing Diagram
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+
+title Diagrama de Temporización - Señales de Control
+
+binary
+  title STEP Pulse (RC1/NCO1OUT)
+  0 as step_low
+  1 as step_high
+
+  0.000 as step_0
+  step_low -down- step_high
+  step_high -up- step_low
+  step_low -down- step_high
+  step_high -up- step_low
+  step_low -down- step_high
+  step_high -up- step_low
+  step_low -down- step_high
+  step_high -up- step_low
+  0.008 as step_end
+
+binary
+  title DIR Signal (RC2)
+  0 as dir_0
+  
+  0.002 as dir_change
+  dir_0 -up-> 1 : Direction change
+  1 as dir_1
+  dir_1 -down-> 0
+  0 as dir_0b
+  0.008 as dir_end
+
+concise
+  title Telemetry Timer (Timer 2 - 100ms interrupt)
+  
+  0.000 as t0
+  : 0
+  0.025 as t1
+  : 0
+  0.050 as t2
+  : 0
+  0.075 as t3
+  : 0
+  0.100 as t4
+  : 1
+  : ISR triggers
+  0.200 as t5
+  : 0
+  0.300 as t6
+  : 1
+  : ISR triggers
+
+note top of step_0
+  STEP frequency depends on:
+  - Configured velocity (mm/min)
+  - STEPS_PER_MM (320)
+  - Microstepping mode
+  
+  Current: Fixed frequency
+  Future: Variable (ramp profile)
+end note
+
+note right of dir_change
+  Direction changes only
+  when motor stops or
+  during G92 command
+end note
+
+note bottom of t4
+  Every 100ms:
+  - Read position counter
+  - Send via UART (if enabled)
+  - Format: "X:xx.xx"
+  
+  Controlled by M120/M121
+end note
+
+footer
+  Time scale: milliseconds (ms)
+  STEP pulse train example shown
+endfooter
+
+@enduml

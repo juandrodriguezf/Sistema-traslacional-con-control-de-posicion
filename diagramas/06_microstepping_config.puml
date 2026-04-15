@@ -1,0 +1,100 @@
+@startuml Microstepping Configuration
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+skinparam defaultFontSize 12
+
+title Configuración de Microstepping - A4988
+
+package "A4988 Microstepping Table" {
+  
+  rectangle "== MS3 (RA2) ==\n(Pin 11)" as ms3_header #lightgreen
+  rectangle "== MS2 (RC0) ==\n(Pin 10)" as ms2_header #lightgreen
+  rectangle "== MS1 (RC3) ==\n(Pin 7)" as ms1_header #lightgreen
+  rectangle "Resolution" as res_header #lightblue
+  
+  rectangle "0" as ms3_0 #white
+  rectangle "0" as ms2_0 #white
+  rectangle "0" as ms1_0 #white
+  rectangle "Full Step" as full_step #lightyellow
+  
+  rectangle "1" as ms3_1a #white
+  rectangle "0" as ms2_1a #white
+  rectangle "0" as ms1_1a #white
+  rectangle "1/2 Step" as half_step #lightyellow
+  
+  rectangle "0" as ms3_2a #white
+  rectangle "1" as ms2_2a #white
+  rectangle "0" as ms1_2a #white
+  rectangle "1/4 Step" as quarter_step #lightyellow
+  
+  rectangle "1" as ms3_3a #white
+  rectangle "1" as ms2_3a #white
+  rectangle "0" as ms1_3a #white
+  rectangle "1/8 Step" as eighth_step #lightgreen
+  
+  rectangle "1" as ms3_4a #white
+  rectangle "1" as ms2_4a #white
+  rectangle "1" as ms1_4a #white
+  rectangle "1/16 Step" as sixteenth_step #lightyellow
+}
+
+ms3_0 -down- ms2_0
+ms2_0 -down- ms1_0
+ms1_0 -down- full_step
+
+ms3_1a -down- ms2_1a
+ms2_1a -down- ms1_1a
+ms1_1a -down- half_step
+
+ms3_2a -down- ms2_2a
+ms2_2a -down- ms1_2a
+ms1_2a -down- quarter_step
+
+ms3_3a -down- ms2_3a
+ms2_3a -down- ms1_3a
+ms1_3a -down- eighth_step
+
+ms3_4a -down- ms2_4a
+ms2_4a -down- ms1_4a
+ms1_4a -down- sixteenth_step
+
+note right of full_step
+  Steps per rev: 200
+  Resolution: 1.8°
+end note
+
+note right of half_step
+  Steps per rev: 400
+  Resolution: 0.9°
+end note
+
+note right of quarter_step
+  Steps per rev: 800
+  Resolution: 0.45°
+end note
+
+note right of eighth_step
+  Steps per rev: 1600
+  Resolution: 0.225°
+  ** DEFAULT CONFIG **
+end note
+
+note right of sixteenth_step
+  Steps per rev: 3200
+  Resolution: 0.1125°
+end note
+
+legend bottom
+  == Example: M350 Command ==
+  <b>M350 S8</b> -> Set 1/8 microstepping
+  Sets: MS1=1, MS2=1, MS3=0
+  Green row shows current default
+endlegend
+
+footer
+  Configure with: M350 S<mode> where mode = 1, 2, 4, 8, or 16
+  Current default: M350 S8 (1/8 microstepping)
+endfooter
+
+@enduml

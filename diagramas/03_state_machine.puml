@@ -1,0 +1,80 @@
+@startuml State Machine
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam state {
+  BackgroundColor #E8F4F8
+  BorderColor #0066CC
+  FontColor #003366
+  FontSize 14
+  FontName Arial
+}
+
+title Máquina de Estados - Control de Motor
+
+[*] --> IDLE : Initialization
+
+state IDLE {
+  [*] --> Waiting
+  Waiting : Motor stopped
+  Waiting : Waiting for commands
+  
+  note right
+    Default state after boot
+    Telemetry can be ON/OFF
+    (M120/M121)
+  end note
+}
+
+state HOMING {
+  [*] --> MovingToHome
+  MovingToHome : Moving at reduced speed
+  MovingToHome : (velocity / 4)
+  
+  note bottom
+    WARNING: No limit switch
+    Requires manual intervention
+    or future sensor addition
+  end note
+}
+
+state MOVE {
+  [*] --> Accelerating : Start movement
+  Accelerating --> ConstantSpeed : Reached max speed
+  ConstantSpeed --> Decelerating : Nearing target
+  Decelerating --> [*] : Target reached
+  
+  note right
+    Current: Constant speed
+    Future: Trapezoidal/Triangular
+    ramp profiles
+  end note
+}
+
+IDLE --> HOMING : G28 (Home command)
+HOMING --> IDLE : Manual stop / Future: limit switch
+
+IDLE --> MOVE : G0 X<pos> (Rapid move)
+IDLE --> MOVE : G1 X<pos> (Work move)
+MOVE --> IDLE : Target position reached
+
+state IDLE <<choice>>
+state MOVE <<choice>>
+
+note right of IDLE
+  Commands accepted:
+  G0/G1, G28, G92,
+  M203, M350, M120/121
+end note
+
+note left of MOVE
+  Position tracking:
+  NCO ISR counter
+  Atomic read
+end note
+
+note bottom of HOMING
+  Pending: Add limit switch
+  to RCx pin for auto-homing
+end note
+
+@enduml

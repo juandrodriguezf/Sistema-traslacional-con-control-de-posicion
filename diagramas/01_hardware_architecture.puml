@@ -1,0 +1,86 @@
+@startuml Hardware Architecture
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+
+title Sistema de Control de Motor a Pasos - Arquitectura de Hardware
+
+package "PC Host" {
+  [Terminal Serial] as terminal
+  [G-code Sender] as sender
+}
+
+package "Comunicación" {
+  [USB-Serial\nAdapter] as adapter
+  cloud UART {
+    [TX: 9600 baud] as tx
+    [RX: 9600 baud] as rx
+  }
+}
+
+package "PIC16F18426" {
+  component [EUSART1] as usart
+  component [Parser G-code] as parser
+  component [State Machine\n(IDLE/HOMING/MOVE)] as fsm
+  component [NCO1\n(Numerically Controlled\nOscillator)] as nco
+  component [GPIO Control] as gpio
+  
+  [Timer 2\n(100ms)] as tmr2
+  
+  usart --> parser
+  parser --> fsm
+  fsm --> nco
+  fsm --> gpio
+  tmr2 --> usart : Telemetry
+}
+
+package "A4988 Driver" {
+  component [STEP Input] as step_in
+  component [DIR Input] as dir_in
+  component [MS1/MS2/MS3\nMicrostepping] as ms_in
+  component [H-Bridge\nPower Stage] as hbridge
+  component [VREF\nCurrent Control] as vref
+}
+
+component [[Stepper Motor\nNEMA 17]] as motor
+
+sender --> terminal
+terminal --> adapter
+adapter --> tx : "Commands"
+tx --> usart
+usart --> parser
+usart --> rx : "Responses"
+rx --> adapter
+adapter --> terminal
+terminal --> sender
+
+nco --> step_in : "STEP Pulses\n(RC1/NCO1OUT)"
+gpio --> dir_in : "Direction\n(RC2)"
+gpio --> ms_in : "Microstep Select\n(MS1:RC3, MS2:RC0, MS3:RA2)"
+
+step_in --> hbridge
+dir_in --> hbridge
+ms_in --> hbridge
+vref --> hbridge
+
+hbridge --> motor : "Phase A/B\nCurrent"
+
+note bottom of motor
+  Motor a pasos bipolar
+  Típico: NEMA 17
+  200 pasos/revolución
+end note
+
+note right of vref
+  Potenciómetro para
+  ajustar corriente
+  del motor
+end note
+
+note left of terminal
+  Comandos G-code
+  G0/G1, G28, M203,
+  M350, M120/M121
+end note
+
+@enduml

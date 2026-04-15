@@ -99,6 +99,13 @@ void UART_SendString(const char *str) {
     EUSART1_Write(*str++);
 }
 
+static void ReportPinStates(void) {
+  char tx_buffer[32];
+  sprintf(tx_buffer, "DIR:%d MS1:%d MS2:%d MS3:%d\r\n",
+          DIR_GetValue(), MS1_GetValue(), MS2_GetValue(), MS3_GetValue());
+  UART_SendString(tx_buffer);
+}
+
 static void UART_SendChar(char c) { EUSART1_Write(c); }
 
 // ================= POSICION =================
@@ -163,29 +170,29 @@ static void setMicrostep(uint8_t mode) {
 
   switch (mode) {
   case 1: // full step
-    LATCbits.LATC3 = 0;
-    LATCbits.LATC0 = 0;
-    LATAbits.LATA2 = 0;
+    MS1_SetLow();
+    MS2_SetLow();
+    MS3_SetLow();
     break;
   case 2: // 1/2
-    LATCbits.LATC3 = 1;
-    LATCbits.LATC0 = 0;
-    LATAbits.LATA2 = 0;
+    MS1_SetHigh();
+    MS2_SetLow();
+    MS3_SetLow();
     break;
   case 4: // 1/4
-    LATCbits.LATC3 = 0;
-    LATCbits.LATC0 = 1;
-    LATAbits.LATA2 = 0;
+    MS1_SetLow();
+    MS2_SetHigh();
+    MS3_SetLow();
     break;
   case 8: // 1/8
-    LATCbits.LATC3 = 1;
-    LATCbits.LATC0 = 1;
-    LATAbits.LATA2 = 0;
+    MS1_SetHigh();
+    MS2_SetHigh();
+    MS3_SetLow();
     break;
   case 16: // 1/16
-    LATCbits.LATC3 = 1;
-    LATCbits.LATC0 = 1;
-    LATAbits.LATA2 = 1;
+    MS1_SetHigh();
+    MS2_SetHigh();
+    MS3_SetHigh();
     break;
   default:
     break;
@@ -224,10 +231,10 @@ static void execute_gcode(const char *cmd) {
 
       if (target_position > ramp_start_pos) {
         dir = 1;
-        LATCbits.LATC2 = 1;
+        DIR_SetHigh();
       } else {
         dir = 0;
-        LATCbits.LATC2 = 0;
+        DIR_SetLow();
       }
 
       // --- Configuracion de Rampa (Full Step) ---
@@ -244,9 +251,21 @@ static void execute_gcode(const char *cmd) {
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
         start_freq = 2000;
         accel_divisor = 4; // df = 0.25 Hz / paso
-      } else {
-        start_freq = 200 * current_microstepping;
-        accel_divisor = 2 * current_microstepping;
+      } else if (current_microstepping == 4) {
+        // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
+        // inercia pero la rampa debe ser mas suave por la perdida de torque.
+        start_freq = 2500;
+        accel_divisor = 8; // df = 0.25 Hz / paso
+      } else if (current_microstepping == 8) {
+        // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
+        // inercia pero la rampa debe ser mas suave por la perdida de torque.
+        start_freq = 3000;
+        accel_divisor = 16; // df = 0.25 Hz / paso
+      } else if (current_microstepping == 16) {
+        // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
+        // inercia pero la rampa debe ser mas suave por la perdida de torque.
+        start_freq = 3500;
+        accel_divisor = 32; // df = 0.25 Hz / paso
       }
 
       current_freq = start_freq;
@@ -279,7 +298,7 @@ static void execute_gcode(const char *cmd) {
 
     state = HOMING;
     dir = 0;
-    LATCbits.LATC2 = 0;
+    DIR_SetLow();
 
     nco_set_freq(400); // homing lento fijo y seguro
     motor_start();
@@ -398,6 +417,11 @@ static void execute_gcode(const char *cmd) {
     }
   }
 
+  // ================= M900 - Reportar estado de pines =================
+  else if (cmd[0] == 'M' && cmd[1] == '9' && cmd[2] == '0' && cmd[3] == '0') {
+    ReportPinStates();
+  }
+
   // ================= COMANDO DESCONOCIDO =================
   else {
     UART_SendString("error: comando desconocido\r\n");
@@ -417,7 +441,7 @@ void main(void) {
   INTERRUPT_PeripheralInterruptEnable();
 
   // Configuracion inicial
-  LATCbits.LATC2 = 0;       // DIR
+  DIR_SetLow();             // DIR
   setMicrostep(2);          // Inicia en modo 1/2 step
   nco_set_freq(start_freq); // Inicializa a la frecuencia de arranque
 
@@ -508,3 +532,5 @@ void main(void) {
     }
   }
 }
+
+

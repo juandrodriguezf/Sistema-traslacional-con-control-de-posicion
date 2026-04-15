@@ -1,0 +1,77 @@
+@startuml Pin Mapping Diagram
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+skinparam defaultFontSize 12
+
+title Asignación de Pines - PIC16F18426 (DIP-14)
+
+package "PIC16F18426\n(DIP-14 Package)" {
+  
+  rectangle "RA0 (Pin 12)" as ra0 #lightgray
+  rectangle "RA1 (Pin 13)" as ra1 #lightgray
+  rectangle "RA2 (Pin 11)" as ra2 #lightgreen
+  rectangle "RA4 (Pin 3)" as ra4 #lightgray
+  rectangle "VDD (Pin 1)" as vdd #lightyellow
+  rectangle "VSS (Pin 14)" as vss #lightyellow
+  
+  rectangle "RC0 (Pin 10)" as rc0 #lightgreen
+  rectangle "RC1 (Pin 9)" as rc1 #lightblue
+  rectangle "RC2 (Pin 8)" as rc2 #lightgreen
+  rectangle "RC3 (Pin 7)" as rc3 #lightgreen
+  rectangle "RC4 (Pin 6)" as rc4 #lightyellow
+  rectangle "RC5 (Pin 5)" as rc5 #lightyellow
+}
+
+rectangle "MS3" as ms3_target #lightgreen
+rectangle "MS2" as ms2_target #lightgreen
+rectangle "STEP" as step_target #lightblue
+rectangle "DIR" as dir_target #lightgreen
+rectangle "MS1" as ms1_target #lightgreen
+rectangle "UART TX" as tx_target #lightyellow
+rectangle "UART RX" as rx_target #lightyellow
+
+ra2 --> ms3_target : "Microstep Select 3"
+rc0 --> ms2_target : "Microstep Select 2"
+rc1 --> step_target : "NCO1OUT (Step Pulse)"
+rc2 --> dir_target : "Direction Control"
+rc3 --> ms1_target : "Microstep Select 1"
+rc4 --> tx_target : "EUSART1 TX\n(9600 baud)"
+rc5 --> rx_target : "EUSART1 RX\n(9600 baud)"
+
+note bottom of ra2
+  Pin 11 - RA2
+  Output: MS3
+  Microstepping control
+end note
+
+note bottom of rc1
+  Pin 9 - RC1
+  Output: STEP
+  NCO1 automatic output
+  PPS: RC1PPS = 0x18
+end note
+
+note bottom of rc4
+  Pin 6 - RC4
+  Output: TX
+  UART transmit
+  PPS: RC4PPS = 0x0F
+end note
+
+note bottom of rc5
+  Pin 5 - RC5
+  Input: RX
+  UART receive
+  PPS: RX1PPS = 0x15
+end note
+
+legend bottom
+  == Color Legend ==
+  <color:lightblue>████</color> NCO/PWM Output (STEP)
+  <color:lightgreen>████</color> Digital I/O (DIR, MS1-3)
+  <color:lightyellow>████</color> UART Communication (TX/RX)
+  <color:lightgray>████</color> Not Used / Power
+endlegend
+
+@enduml

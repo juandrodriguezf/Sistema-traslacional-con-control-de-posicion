@@ -45,6 +45,7 @@ Archivo principal: `main.c`.
 
 El firmware incluye:
 
+- **Control de pines mediante macros MCC:** Todos los pines de control (DIR, MS1, MS2, MS3) usan las funciones generadas por MCC (`DIR_SetHigh()`, `MS1_SetLow()`, etc.) en lugar de manipulación directa de registros.
 - **Parser G-code completo** con buffer de 32 caracteres y conversión automática a mayúsculas.
 - **NCO1** para generación de pulsos con velocidad configurable (`nco_set_speed()`).
 - **Timer 2** configurado para interrupción cada 100ms -> **telemetría a 10Hz** (activable/desactivable por G-code).
@@ -64,6 +65,7 @@ El firmware incluye:
 | `M121` | **Desactivar** telemetría automática | `M121` |
 | `M203 S<vel>` | Configurar velocidad (1-5000 mm/min) | `M203 S2000` |
 | `M350 S<mode>` | Configurar microstepping (1,2,4,8,16) | `M350 S8` |
+| `M900` | Reportar estado de pines (DIR, MS1, MS2, MS3) | `M900` |
 
 ### Respuestas
 
@@ -74,6 +76,7 @@ El firmware incluye:
 - `ok REPORT ON` / `ok REPORT OFF` - telemetría activada/desactivada
 - `error: <motivo>` - error en comando
 - **Telemetría automática:** `X:xx.xx` cada 100ms — **desactivada por defecto** (activar con `M120`)
+- **Reporte de pines (`M900`):** `DIR:X MS1:X MS2:X MS3:X` — estado lógico de los pines de control
 
 ### Configuración por defecto
 

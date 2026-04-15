@@ -1,0 +1,133 @@
+@startuml NCO Frequency Calculation
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontSize 12
+
+title Cálculo de Frecuencia NCO - De Velocidad a Pulsos
+
+start
+
+:Input: Velocity (mm/min)\nfrom M203 command;
+
+:Constants:\n- STEPS_PER_MM = 320\n- FOSC = System clock frequency;
+
+partition "Step 1: Convert velocity to step rate" {
+  :Calculate steps_per_minute = velocity * STEPS_PER_MM;
+  :Calculate steps_per_second = steps_per_minute / 60;
+  
+  note right
+    Example: velocity = 1000 mm/min
+    steps_per_min = 1000 * 320 = 320,000
+    steps_per_sec = 320,000 / 60 = 5,333.33 Hz
+    STEP frequency = 5.333 kHz
+  end note
+}
+
+partition "Step 2: NCO Increment Calculation" {
+  :NCO_increment = (steps_per_second * 2^NCO_resolution) / FOSC;
+  
+  note right
+    NCO1INC = (F_step * 2^20) / FOSC
+    
+    For PIC16F18426:
+    - NCO resolution = 20 bits
+    - FOSC = 32 MHz (typical)
+    
+    Example:
+    NCO1INC = (5333.33 * 1048576) / 32000000
+    NCO1INC ≈ 175.6
+    Round to: 176 (0x00B0)
+  end note
+}
+
+partition "Step 3: Configure NCO1" {
+  :Load NCO1INC register with calculated value;
+  :Set NCO1 to pulse mode;
+  :NCO1OUT routed to RC1 via PPS;
+  :Enable NCO;
+}
+
+:Output: STEP pulse train at calculated frequency;
+
+stop
+
+---
+
+[Function: nco_set_speed()]
+
+skinparam rectangle {
+  BackgroundColor #E8F4F8
+  BorderColor #0066CC
+}
+
+rectangle "
+void nco_set_speed(uint16_t velocity_mm_min) {
+    // Constants
+    #define STEPS_PER_MM 320
+    #define NCO_RESOLUTION 1048576  // 2^20
+    
+    // Calculate step frequency
+    uint32_t steps_per_sec = (velocity_mm_min * STEPS_PER_MM) / 60;
+    
+    // Calculate NCO increment
+    uint32_t nco_inc = (steps_per_sec * NCO_RESOLUTION) / FOSC;
+    
+    // Write to NCO1INC registers (24-bit)
+    NCO1INCL = (nco_inc >> 16) & 0xFF;
+    NCO1INCH = (nco_inc >> 8) & 0xFF;
+    NCO1INC = nco_inc & 0xFF;
+}
+" as code_example
+
+note right of code_example
+  **Current Issues:**
+  
+  1. Fixed frequency (no acceleration)
+  2. Some frequencies cause motor resonance
+  3. No ramp-up/ramp-down
+  4. May lose steps at certain speeds
+  
+  **TODO:**
+  - Add variable NCO increment in ISR for ramps
+  - Test and map problematic frequencies
+  - Add filtering or skip ranges
+end note
+
+---
+
+[Speed Ranges and Characteristics]
+
+rectangle "== Speed Configuration Table ==" as speed_header #lightblue
+
+rectangle "
+== Velocity Range Analysis ==
+
+Velocity (mm/min) | Step Freq (Hz) | NCO1INC  | Notes
+------------------|----------------|----------|------------------
+100               | 533 Hz         | ~18      | Very slow
+500               | 2,667 Hz       | ~88      | Low speed
+1000              | 5,333 Hz       | ~176     | ** DEFAULT MAX **
+2000              | 10,667 Hz      | ~352     | Medium speed
+3000              | 16,000 Hz      | ~528     | High speed
+5000              | 26,667 Hz      | ~880     | ** MAX CONFIG **
+
+** Valid range: 1-5000 mm/min **
+" as speed_table
+
+speed_header -down- speed_table
+
+legend bottom
+  == NCO1 Configuration ==
+  Mode: Pulse mode
+  Output: RC1 (via PPS: RC1PPS = 0x18)
+  Clock source: FOSC (32 MHz typical)
+  Resolution: 20-bit accumulator
+  ISR: Increments position counter on each pulse
+endlegend
+
+footer
+  **PENDING FIX**: Need to address frequency-specific motor issues
+  and implement acceleration/deceleration ramp profiles
+endfooter
+
+@enduml

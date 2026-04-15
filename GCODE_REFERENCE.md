@@ -35,8 +35,11 @@
 | `M114` | Reportar posición actual bajo demanda | `M114` | `ok X:12.34` |
 | `M120` | **Activar** telemetría automática cada 100ms | `M120` | `ok REPORT ON` |
 | `M121` | **Desactivar** telemetría automática | `M121` | `ok REPORT OFF` |
+| `M900` | Reportar estado de pines (DIR, MS1, MS2, MS3) | `M900` | `DIR:0 MS1:1 MS2:0 MS3:1` |
 
 **Nota:** La telemetría automática está **desactivada por defecto**. Envía `M120` para activarla y `M121` para detenerla.
+
+**Nota sobre `M900`:** Reporta el estado lógico de los pines de control: DIR (dirección), MS1/MS2/MS3 (microstepping). Útil para depuración.
 
 ## Configuración
 
