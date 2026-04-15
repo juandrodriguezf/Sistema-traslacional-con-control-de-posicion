@@ -101,8 +101,8 @@ void UART_SendString(const char *str) {
 
 static void ReportPinStates(void) {
   char tx_buffer[32];
-  sprintf(tx_buffer, "DIR:%d MS1:%d MS2:%d MS3:%d\r\n",
-          DIR_GetValue(), MS1_GetValue(), MS2_GetValue(), MS3_GetValue());
+  sprintf(tx_buffer, "DIR:%d MS1:%d MS2:%d MS3:%d\r\n", DIR_GetValue(),
+          MS1_GetValue(), MS2_GetValue(), MS3_GetValue());
   UART_SendString(tx_buffer);
 }
 
@@ -240,8 +240,8 @@ static void execute_gcode(const char *cmd) {
       // --- Configuracion de Rampa (Full Step) ---
       target_freq =
           ((unsigned long)max_speed_mm_min * get_steps_per_mm()) / 60UL;
-      if (target_freq > 20000)
-        target_freq = 20000; // Nuevo tope solicitado (20k Hz)
+      if (target_freq > 90000)
+        target_freq = 90000; // Nuevo tope solicitado (90k Hz)
 
       if (current_microstepping == 1) {
         start_freq = 900;
@@ -249,22 +249,22 @@ static void execute_gcode(const char *cmd) {
       } else if (current_microstepping == 2) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
-        start_freq = 2000;
+        start_freq = 1800;
         accel_divisor = 4; // df = 0.25 Hz / paso
       } else if (current_microstepping == 4) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
-        start_freq = 2500;
+        start_freq = 5000;
         accel_divisor = 8; // df = 0.25 Hz / paso
       } else if (current_microstepping == 8) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
-        start_freq = 3000;
+        start_freq = 8500;
         accel_divisor = 16; // df = 0.25 Hz / paso
       } else if (current_microstepping == 16) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
-        start_freq = 3500;
+        start_freq = 22000;
         accel_divisor = 32; // df = 0.25 Hz / paso
       }
 
@@ -377,12 +377,12 @@ static void execute_gcode(const char *cmd) {
 
     if (s_ptr) {
       long speed = atol(s_ptr);
-      if (speed > 0 && speed <= 20000) {
+      if (speed > 0 && speed <= 90000) {
         max_speed_mm_min = speed;
         sprintf(tx_buffer, "ok F%ld\r\n", speed);
         UART_SendString(tx_buffer);
       } else {
-        UART_SendString("error: velocidad fuera de rango (1-20000)\r\n");
+        UART_SendString("error: velocidad fuera de rango (1-90000)\r\n");
       }
     } else {
       sprintf(tx_buffer, "ok F%ld\r\n", max_speed_mm_min);
@@ -532,5 +532,3 @@ void main(void) {
     }
   }
 }
-
-
