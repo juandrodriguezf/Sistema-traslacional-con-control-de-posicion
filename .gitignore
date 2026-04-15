@@ -1,3 +1,4 @@
+# MPLAB X generated files
 .generated_files/
 build/
 dist/
@@ -10,3 +11,30 @@ _build/
 cmake/**/.generated/*
 cmake/**/CMake*
 out/
+
+# Debug/IDE folders
+.vscode/
+.qwen/
+debug/
+
+# MCC autosave/manifest files
+mcc-manifest-autosave.yml
+mcc-manifest-generated-success.yml
+
+# Excel/spreadsheet files (reference data, not code)
+*.xlsx
+*.xls
+
+# Submodule working directory (managed separately)
+git_repo/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
