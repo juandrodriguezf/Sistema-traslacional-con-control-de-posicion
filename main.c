@@ -254,7 +254,7 @@ static void execute_gcode(const char *cmd) {
       } else if (current_microstepping == 4) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
         // inercia pero la rampa debe ser mas suave por la perdida de torque.
-        start_freq = 5000;
+        start_freq = 50000;
         accel_divisor = 8; // df = 0.25 Hz / paso
       } else if (current_microstepping == 8) {
         // En 1/2 step la arrancada (en Hz) suele ser mayor para romper la
@@ -378,7 +378,7 @@ static void execute_gcode(const char *cmd) {
     if (s_ptr) {
       long speed = atol(s_ptr);
       if (speed > 0 && speed <= 90000) {
-        max_speed_mm_min = speed;
+        max_speed_mm_min = speed; 
         sprintf(tx_buffer, "ok F%ld\r\n", speed);
         UART_SendString(tx_buffer);
       } else {
