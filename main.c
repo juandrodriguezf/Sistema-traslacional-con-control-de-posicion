@@ -108,6 +108,29 @@ static void ReportPinStates(void) {
 
 static void UART_SendChar(char c) { EUSART1_Write(c); }
 
+// ================= CONTROL NCO =================
+
+static void nco_set_freq(unsigned long freq_hz) {
+  unsigned long increment = (freq_hz * 1048576UL) / 32000000UL;
+
+  if (increment == 0)
+    increment = 1;
+
+  NCO1INCL = (uint8_t)(increment & 0xFF);
+  NCO1INCH = (uint8_t)((increment >> 8) & 0xFF);
+  NCO1INCU = (uint8_t)((increment >> 16) & 0xFF);
+}
+
+void motor_start(void) {
+  NCO1CONbits.EN = 1;
+  motor_enable = 1;
+}
+
+void motor_stop(void) {
+  NCO1CONbits.EN = 0;
+  motor_enable = 0;
+}
+
 // ================= POSICION =================
 
 static long position_get_atomic(void) {
@@ -140,27 +163,23 @@ static void UART_SendPosition(void) {
 
 static void TMR2_ReportPositionISR(void) { report_position_flag = 1; }
 
-// ================= CONTROL NCO =================
+static void BUTTON_ZeroHandler(void) {
+  // Verificacion de nivel bajo para evitar falsos disparos
+  if (BUTTON_GetValue() == 0) {
+    motor_stop(); // PRIMERO detener el hardware
+    current_position = 0;
+    target_position = 0;
+    ramp_state = RAMP_IDLE;
+    state = IDLE;
 
-static void nco_set_freq(unsigned long freq_hz) {
-  unsigned long increment = (freq_hz * 1048576UL) / 32000000UL;
+    // Forzar acumuladores a cero y frecuencia a cero para evitar pulsos
+    // residuales
+    NCO1INCL = 0;
+    NCO1INCH = 0;
+    NCO1INCU = 0;
 
-  if (increment == 0)
-    increment = 1;
-
-  NCO1INCL = (uint8_t)(increment & 0xFF);
-  NCO1INCH = (uint8_t)((increment >> 8) & 0xFF);
-  NCO1INCU = (uint8_t)((increment >> 16) & 0xFF);
-}
-
-void motor_start(void) {
-  NCO1CONbits.EN = 1;
-  motor_enable = 1;
-}
-
-void motor_stop(void) {
-  NCO1CONbits.EN = 0;
-  motor_enable = 0;
+    UART_SendString("Posicion cero fijada por boton\r\n");
+  }
 }
 
 // ================= MICROSTEPPING =================
@@ -378,7 +397,7 @@ static void execute_gcode(const char *cmd) {
     if (s_ptr) {
       long speed = atol(s_ptr);
       if (speed > 0 && speed <= 90000) {
-        max_speed_mm_min = speed; 
+        max_speed_mm_min = speed;
         sprintf(tx_buffer, "ok F%ld\r\n", speed);
         UART_SendString(tx_buffer);
       } else {
@@ -437,6 +456,7 @@ void main(void) {
   NCO1CONbits.EN = 0;
 
   TMR2_SetInterruptHandler(TMR2_ReportPositionISR);
+  IOCAF4_SetInterruptHandler(BUTTON_ZeroHandler);
   INTERRUPT_GlobalInterruptEnable();
   INTERRUPT_PeripheralInterruptEnable();
 
