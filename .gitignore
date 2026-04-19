@@ -29,3 +29,16 @@ private/
 # OS files
 .DS_Store
 Thumbs.db
+
+# CMake generated files
+cmake/
+
+# MCC manifest files (auto-generated)
+*mcc-manifest*.yml
+mcc-manifest*.yml
+
+# Build artifacts
+*.map
+*.lst
+*.sym
+
