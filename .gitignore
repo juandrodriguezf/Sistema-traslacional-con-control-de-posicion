@@ -1,0 +1,31 @@
+# MPLAB X IDE generated files
+build/
+dist/
+_build/
+debug/
+out/
+queuelogs/
+
+# MPLAB X project files
+*.mk
+Makefile-genesis.properties
+private/
+
+# Object files
+*.o
+*.obj
+*.elf
+
+# Executables
+*.hex
+*.bin
+*.out
+
+# IDE metadata
+.vscode/
+*.workspace
+*.metadata
+
+# OS files
+.DS_Store
+Thumbs.db
