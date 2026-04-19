@@ -107,7 +107,6 @@ nema_uart.X/
 │   └── 09_nco_frequency_calc.puml
 ├── nema_uart.mc3              # Configuración MCC (Microchip Code Configurator)
 ├── Makefile                   # Build configuration
-├── CONTEXT.md                 # Documentación técnica detallada
 ├── GCODE_REFERENCE.md         # Manual de referencia G-code
 ├── RAMP_GUIDE.md              # Guía de implementación de rampas
 └── README.md                  # Este archivo
@@ -200,7 +199,6 @@ M121              # Desactivar reporte automático
 
 ## Documentación Adicional
 
-- [`CONTEXT.md`](CONTEXT.md) - Contexto técnico completo del proyecto
 - [`GCODE_REFERENCE.md`](GCODE_REFERENCE.md) - Manual de referencia G-code
 - [`RAMP_GUIDE.md`](RAMP_GUIDE.md) - Guía de implementación de rampas
 - [`diagramas/`](diagramas/) - Diagramas de arquitectura (PlantUML)
