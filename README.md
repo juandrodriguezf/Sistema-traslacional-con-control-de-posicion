@@ -116,11 +116,30 @@ nema_uart.X/
 
 ## Ramas del Repositorio
 
-El repositorio tiene **dos ramas principales**:
+El repositorio tiene **tres ramas**:
 
-### `main` (Estable)
+### `version-protoboard` (Desarrollo Activo - HEAD)
 
-- **Estado**: Versión funcional estable
+- **Ubicación**: Local y GitHub (rama por defecto)
+- **Estado**: Versión más actualizada, desarrollo activo
+- **Características**:
+  - Sistema de rampas (aceleración/desaceleración)
+  - Fin de carrera funcionando
+  - S4 en progreso
+  - Documentación extendida (diagramas, guías)
+  - Telemetría automática configurable
+  - Repo limpio (archivos de config locales eliminados)
+- **Últimos commits**:
+  - `8f1275b` - README actualizado (sin referencias a CONTEXT.md)
+  - `fc57c20` - Eliminación de submódulo git_repo
+  - `d179a5e` - Limpieza de archivos locales/configuración
+  - `6e55337` - Update MCC config, manifest
+  - `0ed265d` - Final de carrera funcionando
+
+### `main` (Estable - Solo Local)
+
+- **Ubicación**: Solo local (no subida a GitHub)
+- **Estado**: Versión estable inicial
 - **Características**:
   - Full step funcional (S1 y S2)
   - Control básico de velocidad
@@ -131,21 +150,13 @@ El repositorio tiene **dos ramas principales**:
   - `a891836` - Full step funcional
   - `899b447` - Full step más rápido
 
-### `version-protoboard` (Desarrollo Experimental)
+### `version-PCB` (Versión PCB)
 
-- **Estado**: Rama de desarrollo activo (HEAD actual)
-- **Características**:
-  - Sistema de rampas (aceleración/desaceleración)
-  - Fin de carrera funcionando
-  - S4 en progreso
-  - Documentación extendida (diagramas, guías)
-  - Telemetría automática configurable
-- **Últimos commits**:
-  - `6e55337` - Update MCC config, manifest, git_repo submodule
-  - `0ed265d` - Final de carrera funcionando
-  - `d66b50d` - Versión más funcional, S4 en progreso
-  - `0ea727e` - Actualizar gitignore y agregar guía de rampas
-  - `9ae724f` - Código con rampas funcional S1 y S2
+- **Ubicación**: Solo GitHub
+- **Estado**: Rama separada para versión en PCB
+- **Commits**: 2 commits iniciales
+  - `3c9afe3` - Se borraron archivos innecesarios
+  - `58627fa` - Commit inicial de versión en PCB
 
 ---
 
